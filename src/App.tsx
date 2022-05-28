@@ -1,26 +1,312 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+import pluralize from 'pluralize'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import duration from 'dayjs/plugin/duration'
+import React, { SyntheticEvent } from 'react'
+import {
+  Container,
+  Card,
+  CardActionArea,
+  Typography,
+  Stack,
+  Fab,
+  NoSsr,
+  CardHeader,
+  CardActions,
+  IconButton,
+  Tooltip,
+  Dialog,
+  TextField,
+  useMediaQuery,
+} from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
+import RestoreIcon from '@mui/icons-material/Restore'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import { css } from '@emotion/react'
+import useLocalStorage from './libs/useLocalStorage'
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+dayjs.extend(relativeTime)
+dayjs.extend(duration)
+
+type Item = {
+  id: string
+  name: string
+  createdAt: number
+  laps: number[]
 }
 
-export default App;
+type TimeSinceProps = { unix: number }
+const TimeSince = React.memo(({ unix }: TimeSinceProps) => {
+  const [renderCount, setRenderCount] = React.useState(0)
+  const fmt = React.useCallback(() => {
+    const maxItems = 3
+    const duration = dayjs.duration(Date.now() - unix)
+    const days = duration.days()
+    const hours = duration.hours()
+    const minutes = duration.minutes()
+    const seconds = duration.seconds()
+    const milliseconds = duration.milliseconds()
+    const timeAgo = [
+      days && pluralize('day', days, true),
+      hours && pluralize('hour', hours, true),
+      minutes && pluralize('minute', minutes, true),
+      seconds && pluralize('second', seconds, true),
+      milliseconds && pluralize('ms', milliseconds, true),
+    ]
+      .filter(Boolean)
+      .filter((x, i) => i < maxItems)
+      .join(' ')
+    return (timeAgo || 'unknown time') + ' ago'
+  }, [unix])
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const raf = window.requestAnimationFrame(() => setRenderCount(i => i + 1))
+    return () => window.cancelAnimationFrame(raf)
+  }, [renderCount])
+
+  return <>{fmt()}</>
+})
+
+type ItemEditDialogProps = {
+  item: Item
+  onClose: () => void
+}
+const ItemEditDialog = ({ item, onClose }: ItemEditDialogProps) => {
+  const [name, setName] = React.useState(item.name)
+  return (
+    <Dialog onClose={onClose} open fullWidth>
+      <Card variant='outlined'>
+        <CardHeader
+          title={
+            <TextField
+              autoComplete='off'
+              value={name}
+              fullWidth
+              onChange={e => setName(e.target.value)}
+              placeholder='Unnamed'
+              autoFocus
+              variant='standard'
+              label='Task name'
+              css={css`
+                .MuiInput-root {
+                  font-size: 2rem;
+                }
+              `}
+            />
+          }
+        />
+      </Card>
+    </Dialog>
+  )
+}
+
+type ItemTitleEditProps = {
+  item: Item
+  onDone: (newItem: Item) => void
+}
+const ItemTitleEdit = ({ item, onDone }: ItemTitleEditProps) => {
+  const [name, setName] = React.useState(item.name)
+  const submit = () => onDone({ ...item, name })
+  return (
+    <form
+      onSubmit={e => {
+        e.preventDefault()
+        submit()
+      }}
+    >
+      <TextField
+        autoComplete='off'
+        value={name}
+        fullWidth
+        onChange={e => setName(e.target.value)}
+        placeholder='Unnamed'
+        autoFocus
+        variant='standard'
+        onBlur={submit}
+        css={css`
+          .MuiInput-root {
+            font-size: inherit;
+          }
+        `}
+      />
+    </form>
+  )
+}
+
+type ItemCardProps = {
+  item: Item
+  onDelete: (e: SyntheticEvent) => void
+  onNewLap: (e: SyntheticEvent) => void
+  onUndoLap?: (e: SyntheticEvent) => void
+  onItemEdited: (newItem: Item) => void
+}
+const ItemCard = ({
+  item,
+  onNewLap,
+  onUndoLap,
+  onDelete,
+  onItemEdited,
+}: ItemCardProps) => {
+  const [isEditing, setIsEditing] = React.useState(
+    !item.name && Date.now() - item.createdAt < 1000
+  )
+  const preventPropagation = (e: SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  return (
+    <>
+      <Card key={item.id} variant='outlined'>
+        <CardActionArea
+          onClick={() => setIsEditing(true)}
+          key={item.name} // force remount when item.name changed to remove focus highlight
+        >
+          <CardHeader
+            css={css`
+              .MuiCardHeader-content {
+                min-width: 0;
+              }
+              .MuiCardHeader-subheader {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
+            `}
+            title={
+              isEditing ? (
+                <ItemTitleEdit
+                  item={item}
+                  onDone={newItem => {
+                    onItemEdited(newItem)
+                    setIsEditing(false)
+                  }}
+                />
+              ) : (
+                <>{item.name || 'Unnamed'}</>
+              )
+            }
+            subheader={<TimeSince unix={item.laps[0] || item.createdAt} />}
+            action={
+              <CardActions
+                onClick={preventPropagation}
+                onMouseDown={preventPropagation}
+                onTouchStart={preventPropagation}
+              >
+                {isEditing && (
+                  <Tooltip title='Delete'>
+                    <IconButton onClick={onDelete}>
+                      <DeleteOutlineIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {onUndoLap && (
+                  <Tooltip title='Restore last lap'>
+                    <IconButton onClick={onUndoLap}>
+                      <RestoreIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Tooltip title='Lap'>
+                  <IconButton onClick={onNewLap}>
+                    <RestartAltIcon />
+                  </IconButton>
+                </Tooltip>
+              </CardActions>
+            }
+          />
+        </CardActionArea>
+      </Card>
+      {/* {isEditing && (
+        <ItemEditDialog item={item} onClose={() => setIsEditing(false)} />
+      )} */}
+    </>
+  )
+}
+
+const Tasks = () => {
+  const [items, setItems] = useLocalStorage<Item[]>('time-since-items', [])
+  const onAddNew = () => {
+    setItems(items =>
+      items.concat({
+        id: Date.now().toString(),
+        name: '',
+        createdAt: Date.now(),
+        laps: [],
+      })
+    )
+  }
+  const editItem = (newItem: Item) =>
+    setItems(items =>
+      items.map(it => {
+        if (it.id === newItem.id) {
+          return {
+            ...it,
+            ...newItem,
+          }
+        }
+        return it
+      })
+    )
+  const deleteItem = (item: Item) =>
+    setItems(items => items.filter(it => it.id !== item.id))
+  return (
+    <Stack spacing={2}>
+      <NoSsr>
+        {items.map(item => (
+          <React.Fragment key={item.id}>
+            <ItemCard
+              item={item}
+              onNewLap={() =>
+                editItem({
+                  ...item,
+                  laps: [Date.now(), ...item.laps.slice(0, 99)],
+                })
+              }
+              onItemEdited={editItem}
+              onDelete={() => deleteItem(item)}
+            />
+          </React.Fragment>
+        ))}
+      </NoSsr>
+      <div
+        css={css`
+          display: flex;
+          justify-content: center;
+        `}
+      >
+        <Fab color='primary' size='medium' aria-label='add' onClick={onAddNew}>
+          <AddIcon />
+        </Fab>
+      </div>
+    </Stack>
+  )
+}
+
+const App = () => {
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)')
+
+  const theme = React.useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: prefersDarkMode ? 'dark' : 'light',
+        },
+      }),
+    [prefersDarkMode]
+  )
+  return (
+    <ThemeProvider theme={theme}>
+      <Container component='main' maxWidth='sm'>
+        <Typography variant='h2' paragraph>
+          Ago
+        </Typography>
+        <Tasks />
+      </Container>
+    </ThemeProvider>
+  )
+}
+
+export default App
