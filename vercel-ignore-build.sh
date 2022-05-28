@@ -4,6 +4,12 @@
 
 git fetch --tags
 
+git tag -l
+git show-ref
+git ls-remote
+git ls-remote --tags origin
+git describe --all
+
 commitHash=$(git rev-parse HEAD)
 echo "Commit hash: $commitHash"
 
