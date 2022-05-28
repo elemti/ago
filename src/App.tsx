@@ -28,6 +28,7 @@ import { css } from '@emotion/react'
 import useLocalStorage from './libs/useLocalStorage'
 import { GlobalCtxProvider, useGlobalCtx } from './libs/globalContext'
 import useCallbackRef from './libs/useCallbackRef'
+import MenuBtn from './components/MenuBtn'
 
 dayjs.extend(relativeTime)
 dayjs.extend(duration)
@@ -367,9 +368,18 @@ const App = () => {
     <GlobalCtxProvider>
       <ThemeProvider theme={theme}>
         <Container component='main' maxWidth='sm'>
-          <Typography variant='h2' paragraph>
-            Ago
-          </Typography>
+          <div
+            css={css`
+              display: flex;
+              align-items: center;
+            `}
+          >
+            <Typography variant='h2' paragraph>
+              Ago
+            </Typography>
+            <div style={{ flex: 1 }} />
+            <MenuBtn />
+          </div>
           <Tasks />
         </Container>
       </ThemeProvider>
