@@ -16,9 +16,9 @@ import {
   CardActions,
   IconButton,
   Tooltip,
-  Dialog,
   TextField,
   useMediaQuery,
+  ClickAwayListener,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
@@ -26,6 +26,8 @@ import RestoreIcon from '@mui/icons-material/Restore'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { css } from '@emotion/react'
 import useLocalStorage from './libs/useLocalStorage'
+import { GlobalCtxProvider, useGlobalCtx } from './libs/globalContext'
+import useCallbackRef from './libs/useCallbackRef'
 
 dayjs.extend(relativeTime)
 dayjs.extend(duration)
@@ -43,13 +45,13 @@ const TimeSince = React.memo(({ unix }: TimeSinceProps) => {
   const fmt = React.useCallback(() => {
     const maxItems = 3
     const duration = dayjs.duration(Date.now() - unix)
-    const days = duration.days()
+    const asDays = Math.floor(duration.asDays())
     const hours = duration.hours()
     const minutes = duration.minutes()
     const seconds = duration.seconds()
     const milliseconds = duration.milliseconds()
     const timeAgo = [
-      days && pluralize('day', days, true),
+      asDays && pluralize('day', asDays, true),
       hours && pluralize('hour', hours, true),
       minutes && pluralize('minute', minutes, true),
       seconds && pluralize('second', seconds, true),
@@ -70,72 +72,57 @@ const TimeSince = React.memo(({ unix }: TimeSinceProps) => {
   return <>{fmt()}</>
 })
 
-type ItemEditDialogProps = {
-  item: Item
-  onClose: () => void
-}
-const ItemEditDialog = ({ item, onClose }: ItemEditDialogProps) => {
-  const [name, setName] = React.useState(item.name)
-  return (
-    <Dialog onClose={onClose} open fullWidth>
-      <Card variant='outlined'>
-        <CardHeader
-          title={
-            <TextField
-              autoComplete='off'
-              value={name}
-              fullWidth
-              onChange={e => setName(e.target.value)}
-              placeholder='Unnamed'
-              autoFocus
-              variant='standard'
-              label='Task name'
-              css={css`
-                .MuiInput-root {
-                  font-size: 2rem;
-                }
-              `}
-            />
-          }
-        />
-      </Card>
-    </Dialog>
-  )
-}
+// type ItemEditDialogProps = {
+//   item: Item
+//   onClose: () => void
+// }
+// const ItemEditDialog = ({ item, onClose }: ItemEditDialogProps) => {
+//   const [name, setName] = React.useState(item.name)
+//   return (
+//     <Dialog onClose={onClose} open fullWidth>
+//       <Card variant='outlined'>
+//         <CardHeader
+//           title={
+//             <TextField
+//               autoComplete='off'
+//               value={name}
+//               fullWidth
+//               onChange={e => setName(e.target.value)}
+//               placeholder='Unnamed'
+//               autoFocus
+//               variant='standard'
+//               label='Task name'
+//               css={css`
+//                 .MuiInput-root {
+//                   font-size: 2rem;
+//                 }
+//               `}
+//             />
+//           }
+//         />
+//       </Card>
+//     </Dialog>
+//   )
+// }
 
-type ItemTitleEditProps = {
-  item: Item
-  onDone: (newItem: Item) => void
-}
-const ItemTitleEdit = ({ item, onDone }: ItemTitleEditProps) => {
-  const [name, setName] = React.useState(item.name)
-  const submit = () => onDone({ ...item, name })
-  return (
-    <form
-      onSubmit={e => {
-        e.preventDefault()
-        submit()
-      }}
-    >
-      <TextField
-        autoComplete='off'
-        value={name}
-        fullWidth
-        onChange={e => setName(e.target.value)}
-        placeholder='Unnamed'
-        autoFocus
-        variant='standard'
-        onBlur={submit}
-        css={css`
-          .MuiInput-root {
-            font-size: inherit;
-          }
-        `}
-      />
-    </form>
-  )
-}
+const EditField = ({ ...props }) => (
+  <TextField
+    autoComplete='off'
+    fullWidth
+    variant='standard'
+    css={css`
+      .MuiInput-root {
+        font-size: inherit;
+      }
+    `}
+    {...props}
+  />
+)
 
+type EditingItem = {
+  name: string
+  unixStr: string
+}
 type ItemCardProps = {
   item: Item
   onDelete: (e: SyntheticEvent) => void
@@ -150,75 +137,141 @@ const ItemCard = ({
   onDelete,
   onItemEdited,
 }: ItemCardProps) => {
-  const [isEditing, setIsEditing] = React.useState(
-    !item.name && Date.now() - item.createdAt < 1000
+  const { isDebugMode } = useGlobalCtx()
+  const latestLap = item.laps[0] || item.createdAt
+  const [editingState, setEditingState] = React.useState<EditingItem | null>(
+    null
   )
+
+  const startEditing = useCallbackRef(() =>
+    setEditingState({
+      name: item.name,
+      unixStr: latestLap.toString(),
+    })
+  )
+  const onChangeEditing = useCallbackRef(partialState =>
+    setEditingState(
+      state =>
+        state && {
+          ...state,
+          ...partialState,
+        }
+    )
+  )
+  const finishEditing = useCallbackRef(() => {
+    if (editingState)
+      onItemEdited({
+        ...item,
+        name: editingState.name,
+        createdAt: parseInt(editingState.unixStr) || 0,
+        laps: [],
+      })
+    setEditingState(null)
+  })
+  const isEditing = !!editingState
   const preventPropagation = (e: SyntheticEvent) => {
     e.preventDefault()
     e.stopPropagation()
   }
+
+  // item has just been created -> immediately edit
+  React.useEffect(() => {
+    if (!item.name && Date.now() - item.createdAt < 1000) {
+      startEditing()
+    }
+  }, [item.name, item.createdAt, startEditing])
+
   return (
     <>
-      <Card key={item.id} variant='outlined'>
-        <CardActionArea
-          onClick={() => setIsEditing(true)}
-          key={item.name} // force remount when item.name changed to remove focus highlight
+      <ClickAwayListener onClickAway={finishEditing}>
+        <Card
+          key={item.id}
+          variant='outlined'
+          component={isEditing ? 'form' : 'div'}
+          onSubmit={
+            isEditing
+              ? (e: any) => {
+                  e.preventDefault()
+                  finishEditing()
+                }
+              : undefined
+          }
         >
-          <CardHeader
-            css={css`
-              .MuiCardHeader-content {
-                min-width: 0;
+          {isEditing && <input type='submit' style={{ display: 'none' }} />}
+          <CardActionArea
+            onClick={startEditing}
+            // force remount when item edited to remove focus highlight
+            key={[item.name, item.createdAt].join('-')}
+          >
+            <CardHeader
+              css={css`
+                .MuiCardHeader-content {
+                  min-width: 0;
+                }
+                .MuiCardHeader-subheader {
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                }
+              `}
+              title={
+                isEditing ? (
+                  <EditField
+                    value={editingState.name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      onChangeEditing({ name: e.target.value })
+                    }
+                    placeholder='Unnamed'
+                    autoFocus
+                  />
+                ) : (
+                  <>{item.name || 'Unnamed'}</>
+                )
               }
-              .MuiCardHeader-subheader {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+              subheader={
+                isEditing && isDebugMode ? (
+                  <EditField
+                    type='number'
+                    value={editingState.unixStr}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      onChangeEditing({ unixStr: e.target.value })
+                    }
+                  />
+                ) : (
+                  <TimeSince unix={latestLap} />
+                )
               }
-            `}
-            title={
-              isEditing ? (
-                <ItemTitleEdit
-                  item={item}
-                  onDone={newItem => {
-                    onItemEdited(newItem)
-                    setIsEditing(false)
-                  }}
-                />
-              ) : (
-                <>{item.name || 'Unnamed'}</>
-              )
-            }
-            subheader={<TimeSince unix={item.laps[0] || item.createdAt} />}
-            action={
-              <CardActions
-                onClick={preventPropagation}
-                onMouseDown={preventPropagation}
-                onTouchStart={preventPropagation}
-              >
-                {isEditing && (
-                  <Tooltip title='Delete'>
-                    <IconButton onClick={onDelete}>
-                      <DeleteOutlineIcon />
+              action={
+                <CardActions
+                  onClick={preventPropagation}
+                  onMouseDown={preventPropagation}
+                  onTouchStart={preventPropagation}
+                >
+                  {isEditing && (
+                    <Tooltip title='Delete'>
+                      <IconButton onClick={onDelete}>
+                        <DeleteOutlineIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {onUndoLap && (
+                    <Tooltip title='Restore last lap'>
+                      <IconButton onClick={onUndoLap}>
+                        <RestoreIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip title='Lap'>
+                    <IconButton onClick={onNewLap}>
+                      <RestartAltIcon />
                     </IconButton>
                   </Tooltip>
-                )}
-                {onUndoLap && (
-                  <Tooltip title='Restore last lap'>
-                    <IconButton onClick={onUndoLap}>
-                      <RestoreIcon />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Tooltip title='Lap'>
-                  <IconButton onClick={onNewLap}>
-                    <RestartAltIcon />
-                  </IconButton>
-                </Tooltip>
-              </CardActions>
-            }
-          />
-        </CardActionArea>
-      </Card>
+                </CardActions>
+              }
+            />
+          </CardActionArea>
+        </Card>
+      </ClickAwayListener>
       {/* {isEditing && (
         <ItemEditDialog item={item} onClose={() => setIsEditing(false)} />
       )} */}
@@ -298,14 +351,16 @@ const App = () => {
     [prefersDarkMode]
   )
   return (
-    <ThemeProvider theme={theme}>
-      <Container component='main' maxWidth='sm'>
-        <Typography variant='h2' paragraph>
-          Ago
-        </Typography>
-        <Tasks />
-      </Container>
-    </ThemeProvider>
+    <GlobalCtxProvider>
+      <ThemeProvider theme={theme}>
+        <Container component='main' maxWidth='sm'>
+          <Typography variant='h2' paragraph>
+            Ago
+          </Typography>
+          <Tasks />
+        </Container>
+      </ThemeProvider>
+    </GlobalCtxProvider>
   )
 }
 
