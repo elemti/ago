@@ -2,13 +2,14 @@
 
 # https://vercel.com/support/articles/how-do-i-use-the-ignored-build-step-field-on-vercel
 
-headTag=$(git describe --exact-match HEAD)
+commitHash=$(git rev-parse HEAD)
+echo "Commit hash: $commitHash"
 
-echo "Commit hash: $(git rev-parse HEAD)"
+headTag=$(git describe --exact-match $commitHash)
+[[ -n $headTag ]] && echo "Tag: $headTag"
 
 if npx semver "$headTag"; then
   # Proceed with the build
-  echo "Tag: $headTag"
   echo "✅ - Build can proceed"
   exit 1
 
