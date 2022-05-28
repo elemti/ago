@@ -119,6 +119,32 @@ const EditField = ({ ...props }) => (
   />
 )
 
+const EditableArea = ({
+  isEditing,
+  onStartEditing,
+  onSubmit,
+  children,
+}: {
+  isEditing: boolean
+  onStartEditing: () => void
+  onSubmit: (e: SubmitEvent) => void
+  children: JSX.Element
+}) => {
+  if (isEditing)
+    return (
+      <form
+        onSubmit={(e: any) => {
+          e.preventDefault()
+          onSubmit(e)
+        }}
+      >
+        <input type='submit' style={{ display: 'none' }} />
+        {children}
+      </form>
+    )
+  return <CardActionArea onClick={onStartEditing}>{children}</CardActionArea>
+}
+
 type EditingItem = {
   name: string
   unixStr: string
@@ -184,24 +210,11 @@ const ItemCard = ({
   return (
     <>
       <ClickAwayListener onClickAway={finishEditing}>
-        <Card
-          key={item.id}
-          variant='outlined'
-          component={isEditing ? 'form' : 'div'}
-          onSubmit={
-            isEditing
-              ? (e: any) => {
-                  e.preventDefault()
-                  finishEditing()
-                }
-              : undefined
-          }
-        >
-          {isEditing && <input type='submit' style={{ display: 'none' }} />}
-          <CardActionArea
-            onClick={startEditing}
-            // force remount when item edited to remove focus highlight
-            key={[item.name, item.createdAt].join('-')}
+        <Card key={item.id} variant='outlined'>
+          <EditableArea
+            isEditing={isEditing}
+            onStartEditing={startEditing}
+            onSubmit={finishEditing}
           >
             <CardHeader
               css={css`
@@ -269,7 +282,7 @@ const ItemCard = ({
                 </CardActions>
               }
             />
-          </CardActionArea>
+          </EditableArea>
         </Card>
       </ClickAwayListener>
       {/* {isEditing && (
