@@ -2,6 +2,8 @@
 
 # https://vercel.com/support/articles/how-do-i-use-the-ignored-build-step-field-on-vercel
 
+git fetch --tags
+
 commitHash=$(git rev-parse HEAD)
 echo "Commit hash: $commitHash"
 
