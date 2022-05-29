@@ -377,16 +377,22 @@ const App = () => {
   return (
     <GlobalCtxProvider>
       <ThemeProvider theme={theme}>
-        <Container component='main' maxWidth='sm'>
+        <Container
+          component='main'
+          maxWidth='sm'
+          css={css`
+            padding-top: 16px;
+            padding-bottom: 16px;
+          `}
+        >
           <div
             css={css`
               display: flex;
               align-items: center;
+              margin-bottom: 16px;
             `}
           >
-            <Typography variant='h2' paragraph>
-              Ago
-            </Typography>
+            <Typography variant='h2'>Ago</Typography>
             <div style={{ flex: 1 }} />
             <MenuBtn />
           </div>

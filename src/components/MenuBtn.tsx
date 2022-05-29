@@ -6,13 +6,14 @@ import {
   ListItemText,
   ListItemIcon,
   Typography,
-  Divider,
+  Badge,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt'
 import Cloud from '@mui/icons-material/Cloud'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import pkgJson from '../../package.json'
-import { cleanReload } from '../serviceWorkerRegistration'
+import { skipWaitingAndReload } from '../libs/sw'
+import { useGlobalCtx } from '../libs/globalContext'
 
 export default function MenuBtn () {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -23,11 +24,14 @@ export default function MenuBtn () {
   const handleClose = () => {
     setAnchorEl(null)
   }
+  const { hasUpdate } = useGlobalCtx()
 
   return (
     <div>
       <IconButton onClick={handleClick} size='large'>
-        <MoreVertIcon />
+        <Badge color='primary' variant='dot' invisible={!hasUpdate}>
+          <MoreVertIcon />
+        </Badge>
       </IconButton>
       <Menu
         anchorEl={anchorEl}
@@ -41,15 +45,16 @@ export default function MenuBtn () {
           vertical: 'top',
           horizontal: 'right',
         }}
-        PaperProps={{ sx: { width: 220, maxWidth: '100%' } }}
+        PaperProps={{ sx: { width: 230, maxWidth: '100%' } }}
       >
-        <MenuItem onClick={() => cleanReload()}>
-          <ListItemIcon>
-            <RefreshIcon fontSize='small' />
-          </ListItemIcon>
-          <ListItemText>Refresh</ListItemText>
-        </MenuItem>
-        <Divider />
+        {hasUpdate && (
+          <MenuItem onClick={() => skipWaitingAndReload()}>
+            <ListItemIcon>
+              <SystemUpdateAltIcon fontSize='small' />
+            </ListItemIcon>
+            <ListItemText>New version available</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem disabled>
           <ListItemIcon>
             <Cloud fontSize='small' />
