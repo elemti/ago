@@ -8,13 +8,21 @@ echo "Commit hash: $commitHash"
 # headTag=$(git describe --exact-match $commitHash)
 # [[ -n $headTag ]] && echo "Tag: $headTag"
 
-echo "Commit message: $VERCEL_GIT_COMMIT_MESSAGE"
+echo "VERCEL_GIT_COMMIT_REF: $VERCEL_GIT_COMMIT_REF"
+echo "VERCEL_GIT_COMMIT_SHA: $VERCEL_GIT_COMMIT_SHA"
+echo "VERCEL_GIT_COMMIT_MESSAGE: $VERCEL_GIT_COMMIT_MESSAGE"
+echo "VERCEL_ENV: $VERCEL_ENV"
+
+if [[ "$VERCEL_ENV" != "production" ]]; then
+  # Proceed with the build
+  echo "✅ - Build can proceed"
+  exit 1
+fi
 
 if npx semver "$VERCEL_GIT_COMMIT_MESSAGE"; then
   # Proceed with the build
   echo "✅ - Build can proceed"
   exit 1
-
 else
   # Don't build
   echo "Latest commit message is not valid semver"
