@@ -8,9 +8,9 @@ echo "Commit hash: $commitHash"
 # headTag=$(git describe --exact-match $commitHash)
 # [[ -n $headTag ]] && echo "Tag: $headTag"
 
-echo "Commit message: $NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE"
+echo "Commit message: $VERCEL_GIT_COMMIT_MESSAGE"
 
-if npx semver "$NEXT_PUBLIC_VERCEL_GIT_COMMIT_MESSAGE"; then
+if npx semver "$VERCEL_GIT_COMMIT_MESSAGE"; then
   # Proceed with the build
   echo "✅ - Build can proceed"
   exit 1
