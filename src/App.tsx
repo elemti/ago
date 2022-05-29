@@ -166,16 +166,20 @@ const ItemCard = ({
 }: ItemCardProps) => {
   const { isDebugMode } = useGlobalCtx()
   const latestLap = item.laps[0] || item.createdAt
-  const [editingState, setEditingState] = React.useState<EditingItem | null>(
-    null
-  )
+  const [editingState, setEditingState] = React.useState<
+    (EditingItem & { _initialState: EditingItem }) | null
+  >(null)
 
-  const startEditing = useCallbackRef(() =>
-    setEditingState({
+  const startEditing = useCallbackRef(() => {
+    const state = {
       name: item.name,
       unixStr: latestLap.toString(),
+    }
+    setEditingState({
+      ...state,
+      _initialState: state,
     })
-  )
+  })
   const onChangeEditing = useCallbackRef(partialState =>
     setEditingState(
       state =>
@@ -186,13 +190,19 @@ const ItemCard = ({
     )
   )
   const finishEditing = useCallbackRef(() => {
-    if (editingState)
+    if (editingState) {
+      const { _initialState } = editingState
       onItemEdited({
         ...item,
-        name: editingState.name,
-        createdAt: parseInt(editingState.unixStr) || 0,
-        laps: [],
+        ...(editingState.name !== _initialState.name && {
+          name: editingState.name,
+        }),
+        ...(editingState.unixStr !== _initialState.unixStr && {
+          createdAt: parseInt(editingState.unixStr) || 0,
+          laps: [],
+        }),
       })
+    }
     setEditingState(null)
   })
   const isEditing = !!editingState
