@@ -7,13 +7,12 @@ import {
   ListItemIcon,
   Typography,
   Divider,
-  Paper,
-  MenuList,
 } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import Cloud from '@mui/icons-material/Cloud'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import pkgJson from '../../package.json'
+import { cleanReload } from '../serviceWorkerRegistration'
 
 export default function MenuBtn () {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -42,27 +41,24 @@ export default function MenuBtn () {
           vertical: 'top',
           horizontal: 'right',
         }}
+        PaperProps={{ sx: { width: 220, maxWidth: '100%' } }}
       >
-        <Paper sx={{ width: 220, maxWidth: '100%' }}>
-          <MenuList>
-            <MenuItem onClick={() => location.reload()}>
-              <ListItemIcon>
-                <RefreshIcon fontSize='small' />
-              </ListItemIcon>
-              <ListItemText>Refresh</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem disabled>
-              <ListItemIcon>
-                <Cloud fontSize='small' />
-              </ListItemIcon>
-              <ListItemText>Version</ListItemText>
-              <Typography variant='body2' color='text.secondary'>
-                {pkgJson.version}
-              </Typography>
-            </MenuItem>
-          </MenuList>
-        </Paper>
+        <MenuItem onClick={() => cleanReload()}>
+          <ListItemIcon>
+            <RefreshIcon fontSize='small' />
+          </ListItemIcon>
+          <ListItemText>Refresh</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem disabled>
+          <ListItemIcon>
+            <Cloud fontSize='small' />
+          </ListItemIcon>
+          <ListItemText>Version</ListItemText>
+          <Typography variant='body2' color='text.secondary'>
+            {pkgJson.version}
+          </Typography>
+        </MenuItem>
       </Menu>
     </div>
   )
