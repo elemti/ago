@@ -39,7 +39,6 @@ function DraggableList ({ items }: { items: string[] }) {
         active,
         movement: [, y],
       } = state
-      // if (elapsedTime && type === 'pointerdown') return cancel()
       console.log(state)
       const curIndex = order.current.indexOf(originalIndex)
       const curRow = clamp(
