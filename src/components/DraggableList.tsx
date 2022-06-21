@@ -1,7 +1,7 @@
 import ldDebounce from 'lodash.debounce'
 import React, { ReactElement } from 'react'
 import { useSprings, animated, config } from '@react-spring/web'
-import { useDrag, useGesture } from '@use-gesture/react'
+import { Handler, useDrag, useGesture } from '@use-gesture/react'
 import clamp from 'lodash.clamp'
 import swap from 'lodash-move'
 import { css } from '@emotion/react'
@@ -43,6 +43,7 @@ const fn = (
 // }
 
 function DraggableList ({ items }: { items: string[] }) {
+  const isDraggingRef = React.useRef(false)
   const [isDndMode, setIsDndMode] = React.useState(false)
   // const longPressRef = React.useRef(false)
   const longPressStart = React.useMemo(
@@ -61,44 +62,53 @@ function DraggableList ({ items }: { items: string[] }) {
   }, [longPressStart])
   const order = React.useRef(items.map((_, index) => index)) // Store indicies as a local ref, this represents the item order
   const [springs, api] = useSprings(items.length, fn(order.current)) // Create springs, each corresponds to an item, controlling its transform, scale, etc.
-  const bind = useDrag(
-    state => {
-      console.log(state)
-      const {
-        first,
-        dragging,
-        last,
-        distance,
-        args: [originalIndex],
-        active,
-        movement: [, y],
-      } = state
-      // const div = state.event.target as HTMLElement
-      // div.style.touchAction = 'none'
+  const dragHandler: Handler<'drag'> = state => {
+    console.log(state)
+    const {
+      first,
+      dragging,
+      last,
+      distance,
+      args: [originalIndex],
+      active,
+      movement: [, y],
+      event,
+    } = state
+    // event.preventDefault()
+    // event.stopPropagation()
+    // const div = state.event.target as HTMLElement
+    // div.style.touchAction = 'none'
+    // div.style.pointerEvents = 'none'
 
-      // const moved = distance.some(dir => dir !== 0)
+    // const moved = distance.some(dir => dir !== 0)
 
-      // if (first) longPressStart()
-      // if (moved || last) longPressEnd()
+    // if (first) longPressStart()
+    // if (moved || last) longPressEnd()
 
-      // if (!isDndMode || !moved) return
-      const curIndex = order.current.indexOf(originalIndex)
-      const curRow = clamp(
-        Math.round((curIndex * 100 + y) / 100),
-        0,
-        items.length - 1
-      )
-      const newOrder = swap(order.current, curIndex, curRow)
-      api.start(fn(newOrder, active, originalIndex, curIndex, y)) // Feed springs new style data, they'll animate the view without causing a single render
-      if (!active) order.current = newOrder
+    // if (!isDndMode || !moved) return
+    const curIndex = order.current.indexOf(originalIndex)
+    const curRow = clamp(
+      Math.round((curIndex * 100 + y) / 100),
+      0,
+      items.length - 1
+    )
+    const newOrder = swap(order.current, curIndex, curRow)
+    api.start(fn(newOrder, active, originalIndex, curIndex, y)) // Feed springs new style data, they'll animate the view without causing a single render
+    if (!active) order.current = newOrder
+  }
+  const bind = useGesture(
+    {
+      onDrag: dragHandler,
+      onDragStart: dragHandler,
+      onDragEnd: dragHandler,
     },
     {
       // delay: true,
-      pointer: { touch: true },
-      preventScroll: true,
+      // pointer: { touch: true },
+      // preventScroll: true,
       // preventDefault: true,
-      preventScrollAxis: 'xy',
-      filterTaps: true,
+      // preventScrollAxis: 'xy',
+      // filterTaps: true,
     }
   )
   return (
@@ -115,6 +125,7 @@ function DraggableList ({ items }: { items: string[] }) {
       css={css`
         width: 320px;
         user-select: none;
+        touch-action: manipulation;
 
         & > div {
           position: absolute;
@@ -129,7 +140,6 @@ function DraggableList ({ items }: { items: string[] }) {
           background: lightblue;
           text-transform: uppercase;
           letter-spacing: 2px;
-          touch-action: manipulation;
         }
 
         & > div:nth-child(1) {
