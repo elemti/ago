@@ -76,12 +76,12 @@ function DraggableList ({ items }: { items: string[] }) {
       // const div = state.event.target as HTMLElement
       // div.style.touchAction = 'none'
 
-      const moved = distance.some(dir => dir !== 0)
+      // const moved = distance.some(dir => dir !== 0)
 
-      if (first) longPressStart()
-      if (moved || last) longPressEnd()
+      // if (first) longPressStart()
+      // if (moved || last) longPressEnd()
 
-      if (!isDndMode || !moved) return
+      // if (!isDndMode || !moved) return
       const curIndex = order.current.indexOf(originalIndex)
       const curRow = clamp(
         Math.round((curIndex * 100 + y) / 100),
@@ -94,11 +94,11 @@ function DraggableList ({ items }: { items: string[] }) {
     },
     {
       // delay: true,
-      // pointer: { touch: true },
-      // preventScroll: true,
+      pointer: { touch: true },
+      preventScroll: true,
       // preventDefault: true,
-      // preventScrollAxis: 'xy',
-      // filterTaps: true,
+      preventScrollAxis: 'xy',
+      filterTaps: true,
     }
   )
   return (
@@ -129,6 +129,7 @@ function DraggableList ({ items }: { items: string[] }) {
           background: lightblue;
           text-transform: uppercase;
           letter-spacing: 2px;
+          touch-action: manipulation;
         }
 
         & > div:nth-child(1) {
