@@ -1,5 +1,5 @@
 import ldDebounce from 'lodash.debounce'
-import React from 'react'
+import React, { ReactElement } from 'react'
 import { useSprings, animated, config } from '@react-spring/web'
 import { useDrag, useGesture } from '@use-gesture/react'
 import clamp from 'lodash.clamp'
@@ -43,33 +43,45 @@ const fn = (
 // }
 
 function DraggableList ({ items }: { items: string[] }) {
-  const longPressRef = React.useRef(false)
+  const [isDndMode, setIsDndMode] = React.useState(false)
+  // const longPressRef = React.useRef(false)
   const longPressStart = React.useMemo(
     () =>
       ldDebounce(() => {
+        // return alert('long pressed')
         console.log('long pressed')
-        longPressRef.current = true
-        // setIsDndMode(true)
+        // longPressRef.current = true
+        setIsDndMode(x => !x)
       }, 500),
     []
   )
   const longPressEnd = React.useCallback(() => {
     longPressStart.cancel()
-    longPressRef.current = false
+    // longPressRef.current = false
   }, [longPressStart])
   const order = React.useRef(items.map((_, index) => index)) // Store indicies as a local ref, this represents the item order
   const [springs, api] = useSprings(items.length, fn(order.current)) // Create springs, each corresponds to an item, controlling its transform, scale, etc.
-  const bindDragHandlers = useDrag(
+  const bind = useDrag(
     state => {
-      if (state.active) state.event.preventDefault()
-      // const div = state.event.target as HTMLElement
-      // div.style.touchAction = 'none'
       console.log(state)
       const {
+        first,
+        dragging,
+        last,
+        distance,
         args: [originalIndex],
         active,
         movement: [, y],
       } = state
+      // const div = state.event.target as HTMLElement
+      // div.style.touchAction = 'none'
+
+      const moved = distance.some(dir => dir !== 0)
+
+      if (first) longPressStart()
+      if (moved || last) longPressEnd()
+
+      if (!isDndMode || !moved) return
       const curIndex = order.current.indexOf(originalIndex)
       const curRow = clamp(
         Math.round((curIndex * 100 + y) / 100),
@@ -82,37 +94,24 @@ function DraggableList ({ items }: { items: string[] }) {
     },
     {
       // delay: true,
-      pointer: { touch: true },
-      preventScroll: true,
-      preventDefault: true,
-      preventScrollAxis: 'xy',
-      filterTaps: true,
-    }
-  )
-  const bindLongPressHandlers = useGesture(
-    {
-      onDrag: state => {
-        if (!longPressRef.current) return
-        console.log('drag', state)
-      },
-      onDragStart: state => {
-        console.log('dragstart', state)
-        longPressStart()
-      },
-      onDragEnd: state => {
-        console.log('dragend', state)
-        longPressEnd()
-      },
-    },
-    {
-      // filterTaps: true,
+      // pointer: { touch: true },
       // preventScroll: true,
+      // preventDefault: true,
       // preventScrollAxis: 'xy',
+      // filterTaps: true,
     }
   )
   return (
     <div
-      style={{ height: items.length * 100 }}
+      style={{
+        height: items.length * 100,
+        ...(isDndMode
+          ? {
+              border: '1px solid red',
+              touchAction: 'none',
+            }
+          : null),
+      }}
       css={css`
         width: 320px;
         user-select: none;
@@ -148,9 +147,7 @@ function DraggableList ({ items }: { items: string[] }) {
     >
       {springs.map(({ zIndex, shadow, y, scale }, i) => (
         <animated.div
-          // {...bind(i)}
-          // {...(isDndMode ? bindDragHandlers(i) : bindLongPressHandlers(i))}
-          {...bindDragHandlers(i)}
+          {...bind(i)}
           key={i}
           style={{
             zIndex,
