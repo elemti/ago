@@ -1,6 +1,7 @@
-import { useRef } from 'react'
+import ldDebounce from 'lodash.debounce'
+import React from 'react'
 import { useSprings, animated, config } from '@react-spring/web'
-import { useDrag } from '@use-gesture/react'
+import { useDrag, useGesture } from '@use-gesture/react'
 import clamp from 'lodash.clamp'
 import swap from 'lodash-move'
 import { css } from '@emotion/react'
@@ -29,17 +30,46 @@ const fn = (
         immediate: false,
       }
 
+// const useCustomDrag = (...args) => {
+//   const _bind = useDrag(...args)
+//   const bind = index => {
+//     const ref = React.createRef()
+//     return {
+//       ref,
+//       ..._bind(index, ref),
+//     }
+//   }
+//   return bind
+// }
+
 function DraggableList ({ items }: { items: string[] }) {
-  const order = useRef(items.map((_, index) => index)) // Store indicies as a local ref, this represents the item order
+  const longPressRef = React.useRef(false)
+  const longPressStart = React.useMemo(
+    () =>
+      ldDebounce(() => {
+        console.log('long pressed')
+        longPressRef.current = true
+        // setIsDndMode(true)
+      }, 500),
+    []
+  )
+  const longPressEnd = React.useCallback(() => {
+    longPressStart.cancel()
+    longPressRef.current = false
+  }, [longPressStart])
+  const order = React.useRef(items.map((_, index) => index)) // Store indicies as a local ref, this represents the item order
   const [springs, api] = useSprings(items.length, fn(order.current)) // Create springs, each corresponds to an item, controlling its transform, scale, etc.
-  const bind = useDrag(
+  const bindDragHandlers = useDrag(
     state => {
+      if (state.active) state.event.preventDefault()
+      // const div = state.event.target as HTMLElement
+      // div.style.touchAction = 'none'
+      console.log(state)
       const {
         args: [originalIndex],
         active,
         movement: [, y],
       } = state
-      console.log(state)
       const curIndex = order.current.indexOf(originalIndex)
       const curRow = clamp(
         Math.round((curIndex * 100 + y) / 100),
@@ -54,7 +84,30 @@ function DraggableList ({ items }: { items: string[] }) {
       // delay: true,
       pointer: { touch: true },
       preventScroll: true,
+      preventDefault: true,
+      preventScrollAxis: 'xy',
       filterTaps: true,
+    }
+  )
+  const bindLongPressHandlers = useGesture(
+    {
+      onDrag: state => {
+        if (!longPressRef.current) return
+        console.log('drag', state)
+      },
+      onDragStart: state => {
+        console.log('dragstart', state)
+        longPressStart()
+      },
+      onDragEnd: state => {
+        console.log('dragend', state)
+        longPressEnd()
+      },
+    },
+    {
+      // filterTaps: true,
+      // preventScroll: true,
+      // preventScrollAxis: 'xy',
     }
   )
   return (
@@ -95,7 +148,9 @@ function DraggableList ({ items }: { items: string[] }) {
     >
       {springs.map(({ zIndex, shadow, y, scale }, i) => (
         <animated.div
-          {...bind(i)}
+          // {...bind(i)}
+          // {...(isDndMode ? bindDragHandlers(i) : bindLongPressHandlers(i))}
+          {...bindDragHandlers(i)}
           key={i}
           style={{
             zIndex,
