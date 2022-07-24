@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 // useCallbackRef keeps a function identity unchanged over time while keeping its content up-to-date
 /*
   let Component = ({ prop1, prop2, prop3 }) => {
@@ -23,13 +26,13 @@
   };
 */
 
-import React from 'react'
+import React from "react"
 
 type UseCallbackRef = <Fn extends (...args: any[]) => any>(
   func: Fn
 ) => (...args: Parameters<Fn>) => ReturnType<Fn>
-const useCallbackRef: UseCallbackRef = func => {
-  let funcRef = React.useRef(func)
+const useCallbackRef: UseCallbackRef = (func) => {
+  const funcRef = React.useRef(func)
   funcRef.current = func
 
   return React.useCallback((...args) => {
