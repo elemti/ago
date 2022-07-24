@@ -1,17 +1,17 @@
-import React from 'react'
+import React from 'react';
 
 declare global {
-  var workbox: any
+  var workbox: any;
 }
 
-export default function usePwaLifecycle () {
+export default function usePwaLifecycle() {
   React.useEffect(() => {
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       window.workbox !== undefined
     ) {
-      const wb = window.workbox
+      const wb = window.workbox;
       // add event listeners to handle any of PWA lifecycle event
       // https://developers.google.com/web/tools/workbox/reference-docs/latest/module-workbox-window.Workbox#events
       // wb.addEventListener('installed', event => {
@@ -42,19 +42,19 @@ export default function usePwaLifecycle () {
           )
         ) {
           wb.addEventListener('controlling', (event: any) => {
-            window.location.reload()
-          })
+            window.location.reload();
+          });
 
           // Send a message to the waiting service worker, instructing it to activate.
-          wb.messageSkipWaiting()
+          wb.messageSkipWaiting();
         } else {
           console.log(
             'User rejected to reload the web app, keep using old version. New version will be automatically load when user open the app next time.'
-          )
+          );
         }
-      }
+      };
 
-      wb.addEventListener('waiting', promptNewVersionAvailable)
+      wb.addEventListener('waiting', promptNewVersionAvailable);
 
       // ISSUE - this is not working as expected, why?
       // I could only make message event listenser work when I manually add this listenser into sw.js file
@@ -79,7 +79,7 @@ export default function usePwaLifecycle () {
       */
 
       // never forget to call register as auto register is turned off in next.config.js
-      wb.register()
+      wb.register();
     }
-  }, [])
+  }, []);
 }
