@@ -8,6 +8,7 @@ Ago is a simple Progressive Web App (PWA) to help you track how long it’s been
 - **Task Tracking**: See how much time has passed since each task was last done.
 - **Manage Tasks**: Add, edit, and remove tasks as needed.
 - **Reset Timer**: Use the "Lap" button to reset the timer after completing a task.
+- **Dark Mode**: Dark mode support based on device preference
 
 ## Todo / Ideas
 
