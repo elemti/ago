@@ -2,7 +2,7 @@ import pluralize from 'pluralize';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
-import React, { SyntheticEvent } from 'react';
+import React, { SyntheticEvent, useMemo } from 'react';
 import {
   Card,
   CardActionArea,
@@ -23,17 +23,10 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { css } from '@emotion/react';
 import { useGlobalCtx } from '../libs/globalContext';
 import useCallbackRef from '../libs/useCallbackRef';
-import useLocalStorage from '../libs/useLocalStorage';
+import { Item, useSortBy, useTasks } from '../libs/storage.hooks';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
-
-type Item = {
-  id: string;
-  name: string;
-  createdAt: number;
-  laps: number[];
-};
 
 type TimeSinceProps = { unix: number };
 const TimeSince = React.memo(({ unix }: TimeSinceProps) => {
@@ -301,7 +294,34 @@ const ItemCard = ({
 };
 
 export const Tasks = () => {
-  const [items, setItems] = useLocalStorage<Item[]>('time-since-items', []);
+  const [items, setItems] = useTasks();
+  const [sortBy] = useSortBy();
+  const sortedItems = useMemo(
+    () =>
+      items.slice().sort((a, b) => {
+        const latestLap = (x: Item) => x.laps[0] || x.createdAt;
+        if (sortBy.key === 'title' && sortBy.order === 'asc') {
+          return a.name.localeCompare(b.name);
+        }
+        if (sortBy.key === 'title' && sortBy.order === 'desc') {
+          return b.name.localeCompare(a.name);
+        }
+        if (sortBy.key === 'timeElapsed' && sortBy.order === 'asc') {
+          return latestLap(b) - latestLap(a);
+        }
+        if (sortBy.key === 'timeElapsed' && sortBy.order === 'desc') {
+          return latestLap(a) - latestLap(b);
+        }
+        if (sortBy.key === 'createdAt' && sortBy.order === 'asc') {
+          return a.createdAt - b.createdAt;
+        }
+        if (sortBy.key === 'createdAt' && sortBy.order === 'desc') {
+          return b.createdAt - a.createdAt;
+        }
+        return 0;
+      }),
+    [items, sortBy.key, sortBy.order]
+  );
   const onAddNew = () => {
     setItems((items) =>
       items.concat({
@@ -329,7 +349,7 @@ export const Tasks = () => {
   return (
     <Stack spacing={2}>
       <NoSsr>
-        {items.map((item) => (
+        {sortedItems.map((item) => (
           <React.Fragment key={item.id}>
             <ItemCard
               item={item}

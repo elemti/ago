@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { GlobalCtxProvider } from './libs/globalContext';
 import MenuBtn from './components/MenuBtn';
 import { Tasks } from './components/Tasks';
+import { SortBtn } from './components/SortBtn';
 
 const App = () => {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
@@ -43,7 +44,15 @@ const App = () => {
           >
             <Typography variant="h2">Ago</Typography>
             <div style={{ flex: 1 }} />
-            <MenuBtn />
+            <div
+              css={css`
+                display: flex;
+                gap: 4px;
+              `}
+            >
+              <SortBtn />
+              <MenuBtn />
+            </div>
           </div>
           <Tasks />
         </Container>
